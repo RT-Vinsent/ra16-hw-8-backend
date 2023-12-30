@@ -27,6 +27,20 @@ app.use(koaBody({
   json: true,
 }));
 
+let posts = [
+  {
+    "id": 1,
+    "content": "Пост, относящийся к курсу React",
+    "created": "2023-12-29T17:41:04.960316"
+  },
+  {
+    "id": 2,
+    "content": "Другой пост, относящийся к курсу по React",
+    "created": "2023-12-29T17:41:04.960435"
+  }
+];
+let nextId = 3;
+
 const tokens = new Map();
 const users = new Map();
 const rounds = 10;
@@ -62,7 +76,7 @@ users.set("admin", {
   login: "admin",
   name: "Admin",
   password: bcrypt.hashSync("admin", rounds),
-  avatar: `https://i.pravatar.cc/300`, // ?id=${uuid.v4()}
+  avatar: `https://i.pravatar.cc/300?img=12`, // ?id=${uuid.v4()}
 });
 
 // Настройка стратегии Passport
@@ -130,25 +144,72 @@ router.get('/private/news', ensureAuthenticated, async (ctx) => {
   ctx.body = news;
 });
 
+// маршрут для получения новости по id
+router.get('/private/news/:id', ensureAuthenticated, async (ctx) => {
+  try {
+    const newsId = ctx.params.id;
+    const item = news.find((o) => o.id === newsId);
+    if (!item) {
+      ctx.status = 404;
+      ctx.body = { message: "not found" };
+      return;
+    }
+    ctx.body = item;
+  } catch (error) {
+    console.error(error);
+    ctx.status = 500;
+    ctx.body = { message: "Server internal error" };
+  }
+});
+
 router.get('/', (ctx) => {
   ctx.status = 200;
   ctx.body = { GET: 'ok', };
 });
 
-router.get('/loading', async (ctx) => {
-  await new Promise(resolve => setTimeout(resolve, 5000));
-  ctx.status = 200;
-  ctx.body = { status: "ok" };
+/* Список постов */
+router.get('/posts', (ctx) => {
+  ctx.body = JSON.stringify(posts);
 });
 
-router.get('/data', async (ctx) => {
-  ctx.status = 200;
-  ctx.body = { status: "ok" };
+/* Пост по id */ 
+router.get('/posts/:id', (ctx) => {
+  const postId = Number(ctx.params.id);
+  const index = posts.findIndex((o) => o.id === postId);
+
+  ctx.body = JSON.stringify({ post: posts[index] });
 });
 
-router.get('/error', async (ctx) => {
-  ctx.status = 500;
-  ctx.body = { status: "Internal Error" };
+/* Создание нового поста */ 
+router.post('/posts', (ctx) => {
+  posts.push({ ...ctx.request.body, id: nextId++, created: Date.now() });
+  ctx.status = 204;
+});
+
+/* Обновление поста */ 
+router.put('/posts/:id', (ctx) => {
+  const postId = Number(ctx.params.id);
+  posts = posts.map((o) => {
+    if (o.id === postId) {
+      return {
+        ...o,
+        ...ctx.request.body,
+        id: o.id,
+      };
+    }
+    return o;
+  });
+  ctx.status = 204;
+});
+
+/* Удаление поста */ 
+router.delete('/posts/:id', (ctx) => {
+  const postId = Number(ctx.params.id);
+  const index = posts.findIndex((o) => o.id === postId);
+  if (index !== -1) {
+    posts.splice(index, 1);
+  }
+  ctx.status = 204;
 });
 
 app
